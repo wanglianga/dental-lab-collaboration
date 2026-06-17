@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MulterModule } from '@nestjs/platform-express';
 import { FileService } from './file.service';
 import { FileController } from './file.controller';
 import { FileRecord } from './entities/file.entity';
+import { ToothModule } from '../tooth/tooth.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { FileRecord } from './entities/file.entity';
     MulterModule.register({
       dest: './uploads',
     }),
+    forwardRef(() => ToothModule),
   ],
   controllers: [FileController],
   providers: [FileService],

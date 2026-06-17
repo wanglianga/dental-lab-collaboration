@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ToothService } from './tooth.service';
 import { ToothController } from './tooth.controller';
@@ -8,7 +8,7 @@ import { FileRecord } from '../file/entities/file.entity';
 import { FileModule } from '../file/file.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tooth, ProcessRecord, FileRecord]), FileModule],
+  imports: [TypeOrmModule.forFeature([Tooth, ProcessRecord, FileRecord]), forwardRef(() => FileModule)],
   controllers: [ToothController],
   providers: [ToothService],
   exports: [ToothService],

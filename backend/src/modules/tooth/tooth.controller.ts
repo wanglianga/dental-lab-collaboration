@@ -70,12 +70,13 @@ export class ToothController {
   async uploadToothFile(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
-    @Body('category') category?: string,
+    @Req() req: any,
   ) {
+    const category = (req.body && req.body.category) || 'other';
     const tooth = await this.toothService.findOne(+id);
     const fileRecord = await this.fileService.saveFile(
       file,
-      category || 'other',
+      category,
       tooth.id,
       tooth.orderId,
     );

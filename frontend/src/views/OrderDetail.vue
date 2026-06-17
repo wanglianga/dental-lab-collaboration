@@ -131,7 +131,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
@@ -139,6 +139,7 @@ import { getOrder, submitTryFeedback } from '@/api/order'
 import { uploadFile, getFiles, deleteFile } from '@/api/file'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
 const order = ref(null)
@@ -187,7 +188,8 @@ async function loadData() {
 }
 
 function goToothDetail(row) {
-  window.open(`/#/teeth/${row.id}`, '_blank')
+  const routeData = router.resolve({ name: 'ToothDetail', params: { id: row.id } })
+  window.open(routeData.href, '_blank')
 }
 
 async function submitFeedback() {
