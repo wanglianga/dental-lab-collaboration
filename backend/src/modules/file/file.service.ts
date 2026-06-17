@@ -33,8 +33,8 @@ export class FileService {
 
   findAll(toothId?: number, orderId?: number): Promise<FileRecord[]> {
     const where: any = {};
-    if (toothId) where.toothId = toothId;
-    if (orderId) where.orderId = orderId;
+    if (toothId != null && toothId > 0) where.toothId = toothId;
+    if (orderId != null && orderId > 0) where.orderId = orderId;
     return this.filesRepository.find({ where, order: { createdAt: 'DESC' } });
   }
 

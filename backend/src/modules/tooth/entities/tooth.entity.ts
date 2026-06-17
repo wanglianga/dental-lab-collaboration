@@ -4,6 +4,7 @@ import { ProcessRecord } from '../../process-record/entities/process-record.enti
 import { Inspection } from '../../inspection/entities/inspection.entity';
 import { Repair } from '../../repair/entities/repair.entity';
 import { Logistics } from '../../logistics/entities/logistics.entity';
+import { FileRecord } from '../../file/entities/file.entity';
 
 export type ToothStatus = 'pending' | 'processing' | 'inspection' | 'rework' | 'shipped' | 'delivered' | 'completed';
 export type ToothStage = 'model_design' | 'wax_pattern' | 'casting' | 'porcelain' | 'glazing' | 'color_adjustment' | 'quality_check' | 'completed';
@@ -59,17 +60,20 @@ export class Tooth {
   @Column({ type: 'text', nullable: true })
   tryFeedback: string;
 
-  @OneToMany(() => ProcessRecord, pr => pr.tooth, { cascade: true })
+  @OneToMany(() => ProcessRecord, pr => pr.tooth)
   processRecords: ProcessRecord[];
 
-  @OneToMany(() => Inspection, ins => ins.tooth, { cascade: true })
+  @OneToMany(() => Inspection, ins => ins.tooth)
   inspections: Inspection[];
 
-  @OneToMany(() => Repair, r => r.tooth, { cascade: true })
+  @OneToMany(() => Repair, r => r.tooth)
   repairs: Repair[];
 
-  @OneToMany(() => Logistics, l => l.tooth, { cascade: true })
+  @OneToMany(() => Logistics, l => l.tooth)
   logistics: Logistics[];
+
+  @OneToMany(() => FileRecord, f => f.tooth)
+  files: FileRecord[];
 
   @CreateDateColumn()
   createdAt: Date;

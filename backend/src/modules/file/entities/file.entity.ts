@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Tooth } from '../../tooth/entities/tooth.entity';
 
 @Entity('files')
 export class FileRecord {
@@ -25,6 +26,10 @@ export class FileRecord {
 
   @Column({ nullable: true })
   toothId: number;
+
+  @ManyToOne(() => Tooth, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'toothId' })
+  tooth: Tooth;
 
   @Column({ nullable: true })
   orderId: number;

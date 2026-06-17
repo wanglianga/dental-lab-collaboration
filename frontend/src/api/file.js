@@ -14,3 +14,7 @@ export function uploadFile(file, category, toothId, orderId) {
 export function getFiles(toothId, orderId) {
   return request.get('/files', { params: { toothId, orderId } })
 }
+
+export function deleteFile(id) {
+  return request.delete(`/files/${id}`)
+}

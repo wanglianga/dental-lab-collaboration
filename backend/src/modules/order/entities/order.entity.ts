@@ -42,7 +42,7 @@ export class Order {
   })
   status: OrderStatus;
 
-  @OneToMany(() => Tooth, tooth => tooth.order, { cascade: true })
+  @OneToMany(() => Tooth, tooth => tooth.order)
   teeth: Tooth[];
 
   @CreateDateColumn()

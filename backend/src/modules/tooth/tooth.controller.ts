@@ -1,14 +1,21 @@
-import { Controller, Get, Post, Body, Param, Put, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Query, UseGuards, UseInterceptors, UploadedFile, Req } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import { ToothService } from './tooth.service';
 import { CreateToothDto, UpdateToothStatusDto } from './dto/create-tooth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { FileService } from '../file/file.service';
+import { extname } from 'path';
 
 @Controller('teeth')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ToothController {
-  constructor(private readonly toothService: ToothService) {}
+  constructor(
+    private readonly toothService: ToothService,
+    private readonly fileService: FileService,
+  ) {}
 
   @Post()
   create(@Body() createToothDto: CreateToothDto) {
@@ -23,6 +30,11 @@ export class ToothController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.toothService.findOne(+id);
+  }
+
+  @Get(':id/files')
+  getFiles(@Param('id') id: string) {
+    return this.toothService.getToothFiles(+id);
   }
 
   @Put(':id')
@@ -40,5 +52,42 @@ export class ToothController {
   @Roles('doctor')
   submitTryFeedback(@Param('id') id: string, @Body('feedback') feedback: string) {
     return this.toothService.submitTryFeedback(+id, feedback);
+  }
+
+  @Post(':id/files')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+          cb(null, `${randomName}${extname(file.originalname)}`);
+        },
+      }),
+      limits: { fileSize: 100 * 1024 * 1024 },
+    }),
+  )
+  async uploadToothFile(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('category') category?: string,
+  ) {
+    const tooth = await this.toothService.findOne(+id);
+    const fileRecord = await this.fileService.saveFile(
+      file,
+      category || 'other',
+      tooth.id,
+      tooth.orderId,
+    );
+    if (category && ['color_photo', 'scan_file', 'design_file'].includes(category)) {
+      await this.toothService.linkFileToTooth(+id, fileRecord.id);
+    }
+    return fileRecord;
+  }
+
+  @Post(':id/link-file')
+  @Roles('doctor', 'receptionist', 'technician', 'inspector')
+  async linkFile(@Param('id') id: string, @Body('fileRecordId') fileRecordId: number) {
+    return this.toothService.linkFileToTooth(+id, fileRecordId);
   }
 }

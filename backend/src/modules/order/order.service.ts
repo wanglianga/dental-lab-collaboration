@@ -16,14 +16,15 @@ export class OrderService {
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     const orderNo = `ORD${Date.now()}`;
+    const { teeth, ...orderData } = createOrderDto;
     const order = this.ordersRepository.create({
-      ...createOrderDto,
+      ...orderData,
       orderNo,
       status: 'pending',
     });
     const saved = await this.ordersRepository.save(order);
 
-    for (const toothDto of createOrderDto.teeth) {
+    for (const toothDto of teeth) {
       const tooth = this.teethRepository.create({
         ...toothDto,
         orderId: saved.id,
@@ -56,7 +57,7 @@ export class OrderService {
   async findOne(id: number): Promise<Order> {
     const order = await this.ordersRepository.findOne({
       where: { id },
-      relations: ['patient', 'doctor', 'teeth', 'teeth.processRecords', 'teeth.repairs', 'teeth.inspections', 'teeth.logistics'],
+      relations: ['patient', 'doctor', 'teeth', 'teeth.processRecords', 'teeth.repairs', 'teeth.inspections', 'teeth.logistics', 'teeth.files'],
     });
     if (!order) throw new NotFoundException('订单不存在');
     return order;

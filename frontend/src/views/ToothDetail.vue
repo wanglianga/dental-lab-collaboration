@@ -34,6 +34,30 @@
           </el-descriptions>
         </el-card>
 
+        <el-card style="margin-bottom: 20px;">
+          <template #header><span class="card-header">快捷文件链接</span></template>
+          <el-descriptions column="1" border size="small">
+            <el-descriptions-item label="比色照片">
+              <a v-if="tooth.colorPhotoUrl" :href="tooth.colorPhotoUrl" target="_blank">
+                <el-tag type="warning" size="small" style="cursor:pointer;">查看比色照片</el-tag>
+              </a>
+              <span v-else style="color: #c0c4cc;">未上传</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="口扫文件">
+              <a v-if="tooth.scanFileUrl" :href="tooth.scanFileUrl" target="_blank">
+                <el-tag type="primary" size="small" style="cursor:pointer;">查看口扫文件</el-tag>
+              </a>
+              <span v-else style="color: #c0c4cc;">未上传</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="设计文件">
+              <a v-if="tooth.designFileUrl" :href="tooth.designFileUrl" target="_blank">
+                <el-tag type="success" size="small" style="cursor:pointer;">查看设计文件</el-tag>
+              </a>
+              <span v-else style="color: #c0c4cc;">未上传</span>
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+
         <el-card>
           <template #header><span class="card-header">工序进度</span></template>
           <el-steps :active="stageIndex(tooth.currentStage)" direction="vertical" finish-status="success">
@@ -44,6 +68,39 @@
 
       <el-col :span="14">
         <el-tabs v-model="activeTab">
+          <el-tab-pane label="附件管理" name="files">
+            <div class="file-upload-bar">
+              <el-upload
+                :show-file-list="false"
+                :before-upload="(f) => handleToothUpload(f)"
+                accept="image/*,.stl,.obj,.ply,.zip"
+              >
+                <el-button type="primary" size="small">上传文件</el-button>
+              </el-upload>
+            </div>
+            <el-table :data="toothFiles" size="small" border v-if="toothFiles.length">
+              <el-table-column label="文件名" prop="originalName" show-overflow-tooltip />
+              <el-table-column label="类型" width="110">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="categoryTagType(row.category)">{{ categoryText(row.category) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="大小" width="90">
+                <template #default="{ row }">{{ formatSize(row.size) }}</template>
+              </el-table-column>
+              <el-table-column label="上传时间" width="160">
+                <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="150">
+                <template #default="{ row }">
+                  <el-button type="primary" link size="small" @click="previewFile(row)">查看</el-button>
+                  <el-button type="danger" link size="small" @click="removeFile(row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="暂无附件，可上传比色照片、口扫文件、设计文件" :image-size="60" />
+          </el-tab-pane>
+
           <el-tab-pane label="工序记录" name="process">
             <el-timeline v-if="tooth.processRecords?.length">
               <el-timeline-item
@@ -294,24 +351,53 @@
         <el-button type="primary" @click="submitFeedback">提交</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="toothUploadVisible" title="上传牙齿附件" width="450px">
+      <el-form label-width="80px">
+        <el-form-item label="文件分类">
+          <el-select v-model="toothUploadCategory" style="width: 100%;">
+            <el-option label="比色照片" value="color_photo" />
+            <el-option label="口扫文件" value="scan_file" />
+            <el-option label="设计文件" value="design_file" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="toothUploadVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmToothUpload">确认上传</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="filePreviewVisible" title="文件预览" width="700px">
+      <img v-if="filePreviewData?.isImage" :src="filePreviewData?.url" style="max-width: 100%; max-height: 500px;" />
+      <div v-else style="text-align: center; padding: 40px;">
+        <el-icon :size="64" color="#909399"><Document /></el-icon>
+        <p style="margin-top: 12px; color: #606266;">{{ filePreviewData?.name }}</p>
+        <el-button type="primary" style="margin-top: 12px;" @click="downloadFile">下载文件</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Document } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
-import { getTooth, updateToothStatus, submitToothTryFeedback } from '@/api/tooth'
+import { getTooth, updateToothStatus, submitToothTryFeedback, uploadToothFile, getToothFiles } from '@/api/tooth'
 import { createRepair } from '@/api/repair'
 import { createInspection } from '@/api/inspection'
 import { createLogistics } from '@/api/logistics'
+import { deleteFile } from '@/api/file'
 
 const route = useRoute()
 const userStore = useUserStore()
 const loading = ref(false)
 const tooth = ref(null)
-const activeTab = ref('process')
+const activeTab = ref('files')
+const toothFiles = ref([])
 
 const canUpdateStatus = computed(() => ['technician', 'inspector', 'doctor', 'receptionist', 'logistics'].includes(userStore.user?.role))
 const canCreateRepair = computed(() => ['doctor', 'inspector', 'technician', 'receptionist'].includes(userStore.user?.role))
@@ -336,9 +422,17 @@ const statusMap = {
 const repairStatusMap = {
   pending: '待处理', processing: '处理中', completed: '已完成', returned: '已退回',
 }
+const categoryMap = {
+  color_photo: '比色照片', scan_file: '口扫文件', design_file: '设计文件', other: '其他',
+}
 function statusText(s) { return statusMap[s] || s }
 function repairStatusText(s) { return repairStatusMap[s] || s }
 function stageText(s) { return stages.find(t => t.key === s)?.label || s }
+function categoryText(c) { return categoryMap[c] || c || '其他' }
+function categoryTagType(c) {
+  const m = { color_photo: 'warning', scan_file: 'primary', design_file: 'success', other: 'info' }
+  return m[c] || 'info'
+}
 function stageIndex(key) {
   const i = stages.findIndex(s => s.key === key)
   return i >= 0 ? i + 1 : 0
@@ -348,11 +442,19 @@ function timelineType(status) {
   return map[status] || 'primary'
 }
 function formatDate(d) { return d ? new Date(d).toLocaleString('zh-CN') : '' }
+function formatSize(bytes) {
+  if (!bytes) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i]
+}
 
 async function loadData() {
   loading.value = true
   try {
     tooth.value = await getTooth(route.params.id)
+    toothFiles.value = await getToothFiles(tooth.value.id)
   } finally {
     loading.value = false
   }
@@ -455,11 +557,68 @@ async function submitFeedback() {
   loadData()
 }
 
+const toothUploadVisible = ref(false)
+const toothUploadCategory = ref('other')
+const toothPendingFile = ref(null)
+
+function handleToothUpload(file) {
+  toothPendingFile.value = file
+  toothUploadCategory.value = 'other'
+  toothUploadVisible.value = true
+  return false
+}
+
+async function confirmToothUpload() {
+  if (!toothPendingFile.value) return
+  try {
+    await uploadToothFile(tooth.value.id, toothPendingFile.value, toothUploadCategory.value)
+    ElMessage.success('文件上传成功')
+    toothUploadVisible.value = false
+    toothPendingFile.value = null
+    loadData()
+  } catch (e) {
+    ElMessage.error('上传失败')
+  }
+}
+
+const filePreviewVisible = ref(false)
+const filePreviewData = ref(null)
+
+function previewFile(row) {
+  const isImage = row.mimeType?.startsWith('image/')
+  filePreviewData.value = {
+    url: row.filePath,
+    name: row.originalName,
+    isImage,
+  }
+  filePreviewVisible.value = true
+}
+
+function downloadFile() {
+  if (filePreviewData.value?.url) {
+    window.open(filePreviewData.value.url, '_blank')
+  }
+}
+
+async function removeFile(row) {
+  try {
+    await ElMessageBox.confirm('确定要删除此文件吗？', '提示', { type: 'warning' })
+    await deleteFile(row.id)
+    ElMessage.success('已删除')
+    loadData()
+  } catch {}
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped>
 .card-header {
   font-weight: 600;
+}
+.file-upload-bar {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
