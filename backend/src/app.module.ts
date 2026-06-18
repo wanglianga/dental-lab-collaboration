@@ -11,6 +11,7 @@ import { InspectionModule } from './modules/inspection/inspection.module';
 import { RepairModule } from './modules/repair/repair.module';
 import { LogisticsModule } from './modules/logistics/logistics.module';
 import { FileModule } from './modules/file/file.module';
+import { ModelExceptionModule } from './modules/model-exception/model-exception.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FileModule } from './modules/file/file.module';
     RepairModule,
     LogisticsModule,
     FileModule,
+    ModelExceptionModule,
   ],
 })
 export class AppModule {}

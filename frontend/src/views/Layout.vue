@@ -43,6 +43,10 @@
           <el-icon><Refresh /></el-icon>
           <span>返修管理</span>
         </el-menu-item>
+        <el-menu-item index="/model-exceptions">
+          <el-icon><Warning /></el-icon>
+          <span>模型异常管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
@@ -69,7 +73,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Odometer, User, Document, Grid, Tools, CircleCheck, Van, Refresh, Location
+  Odometer, User, Document, Grid, Tools, CircleCheck, Van, Refresh, Location, Warning
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 

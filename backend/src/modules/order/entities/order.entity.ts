@@ -2,8 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinColum
 import { Patient } from '../../patient/entities/patient.entity';
 import { User } from '../../user/entities/user.entity';
 import { Tooth } from '../../tooth/entities/tooth.entity';
+import { ModelException } from '../../model-exception/entities/model-exception.entity';
 
-export type OrderStatus = 'pending' | 'processing' | 'partial_completed' | 'completed' | 'returned';
+export type OrderStatus = 'pending' | 'processing' | 'partial_completed' | 'completed' | 'returned' | 'exception';
 
 @Entity('orders')
 export class Order {
@@ -42,8 +43,14 @@ export class Order {
   })
   status: OrderStatus;
 
+  @Column({ type: 'datetime', nullable: true })
+  expectedDeliveryDate: Date;
+
   @OneToMany(() => Tooth, tooth => tooth.order)
   teeth: Tooth[];
+
+  @OneToMany(() => ModelException, me => me.order)
+  modelExceptions: ModelException[];
 
   @CreateDateColumn()
   createdAt: Date;

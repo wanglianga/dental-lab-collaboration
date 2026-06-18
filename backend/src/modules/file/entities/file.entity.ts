@@ -1,5 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Tooth } from '../../tooth/entities/tooth.entity';
+import { Repair } from '../../repair/entities/repair.entity';
+import { ModelException } from '../../model-exception/entities/model-exception.entity';
 
 @Entity('files')
 export class FileRecord {
@@ -30,6 +32,20 @@ export class FileRecord {
   @ManyToOne(() => Tooth, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'toothId' })
   tooth: Tooth;
+
+  @Column({ nullable: true })
+  repairId: number;
+
+  @ManyToOne(() => Repair, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'repairId' })
+  repair: Repair;
+
+  @Column({ nullable: true })
+  modelExceptionId: number;
+
+  @ManyToOne(() => ModelException, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'modelExceptionId' })
+  modelException: ModelException;
 
   @Column({ nullable: true })
   orderId: number;

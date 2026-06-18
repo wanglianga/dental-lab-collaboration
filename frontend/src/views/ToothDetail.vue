@@ -8,6 +8,8 @@
       <div class="header-actions" v-if="tooth">
         <el-button type="primary" plain size="small" @click="openStatusDialog" v-if="canUpdateStatus">更新工序状态</el-button>
         <el-button type="danger" plain size="small" @click="openRepairDialog" v-if="canCreateRepair">申请返修</el-button>
+        <el-button type="danger" plain size="small" @click="openTryRepairDialog" v-if="canCreateTryRepair">试戴返修</el-button>
+        <el-button type="warning" plain size="small" @click="openModelExceptionDialog" v-if="canReportModelException">上报模型异常</el-button>
         <el-button type="primary" plain size="small" @click="openInspectionDialog" v-if="canInspect">质检</el-button>
         <el-button type="warning" plain size="small" @click="openLogisticsDialog" v-if="canLogistics">物流操作</el-button>
         <el-button type="success" plain size="small" @click="openFeedbackDialog" v-if="canSubmitFeedback">提交试戴反馈</el-button>
@@ -163,6 +165,16 @@
 
           <el-tab-pane label="返修履历" name="repair">
             <el-table :data="tooth.repairs || []" size="small" border>
+              <el-table-column label="类型" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.repairType === 'try_in' ? 'warning' : 'info'" size="small">
+                    {{ row.repairType === 'try_in' ? '试戴返修' : '普通返修' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="问题" width="110">
+                <template #default="{ row }">{{ issueText(row.issue) }}</template>
+              </el-table-column>
               <el-table-column label="申请时间" width="170">
                 <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
               </el-table-column>
@@ -173,7 +185,13 @@
                 <template #default="{ row }">{{ row.handler?.name || '-' }}</template>
               </el-table-column>
               <el-table-column prop="reason" label="原因" show-overflow-tooltip />
+              <el-table-column label="技师处理" width="90">
+                <template #default="{ row }">{{ technicianActionText(row.technicianAction) }}</template>
+              </el-table-column>
               <el-table-column prop="repairAction" label="处理措施" show-overflow-tooltip />
+              <el-table-column label="影响收费" width="80">
+                <template #default="{ row }">{{ row.affectsCharging ? '是' : '否' }}</template>
+              </el-table-column>
               <el-table-column label="状态" width="100">
                 <template #default="{ row }">
                   <span class="status-tag" :class="'status-' + row.status">{{ repairStatusText(row.status) }}</span>
@@ -182,6 +200,35 @@
               <el-table-column prop="remark" label="备注" show-overflow-tooltip />
             </el-table>
             <el-empty v-if="!tooth.repairs?.length" description="暂无返修记录" />
+          </el-tab-pane>
+
+          <el-tab-pane label="模型异常" name="modelException">
+            <el-table :data="tooth.modelExceptions || []" size="small" border>
+              <el-table-column label="异常类型" width="130">
+                <template #default="{ row }">
+                  <el-tag :type="exceptionTypeTag(row.exceptionType)" size="small">{{ exceptionTypeText(row.exceptionType) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="上报时间" width="170">
+                <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column label="上报人" width="100">
+                <template #default="{ row }">{{ row.reporter?.name }}</template>
+              </el-table-column>
+              <el-table-column prop="description" label="问题描述" show-overflow-tooltip />
+              <el-table-column label="状态" width="110">
+                <template #default="{ row }">
+                  <span class="status-tag" :class="'status-' + row.status">{{ exceptionStatusText(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="医生决定" width="110">
+                <template #default="{ row }">{{ doctorDecisionText(row.doctorDecision) }}</template>
+              </el-table-column>
+              <el-table-column label="新交付日期" width="130">
+                <template #default="{ row }">{{ formatDate(row.newDeliveryDate) }}</template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-if="!tooth.modelExceptions?.length" description="暂无模型异常记录" />
           </el-tab-pane>
 
           <el-tab-pane label="物流记录" name="logistics">
@@ -251,6 +298,59 @@
       <template #footer>
         <el-button @click="repairVisible = false">取消</el-button>
         <el-button type="primary" @click="submitRepair">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="tryRepairVisible" title="试戴返修申请" width="600px">
+      <el-form :model="tryRepairForm" label-width="110px">
+        <el-form-item label="问题类型" required>
+          <el-checkbox-group v-model="tryRepairForm.issues">
+            <el-checkbox label="margin_gap">边缘不密合</el-checkbox>
+            <el-checkbox label="color_gray">颜色偏灰</el-checkbox>
+            <el-checkbox label="occlusion_high">咬合过高</el-checkbox>
+            <el-checkbox label="contact_tight">邻接过紧</el-checkbox>
+            <el-checkbox label="other">其他</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="详细原因" required>
+          <el-input v-model="tryRepairForm.reason" type="textarea" :rows="3" placeholder="请详细描述试戴发现的问题..." />
+        </el-form-item>
+        <el-form-item label="影响收费">
+          <el-switch v-model="tryRepairForm.affectsCharging" />
+        </el-form-item>
+        <el-form-item label="患者复诊时间">
+          <el-date-picker v-model="tryRepairForm.revisitDate" type="date" style="width: 100%;" value-format="YYYY-MM-DD" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="tryRepairForm.remark" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="tryRepairVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitTryRepair">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="modelExceptionVisible" title="上报模型异常" width="550px">
+      <el-form :model="modelExceptionForm" label-width="110px">
+        <el-form-item label="异常类型" required>
+          <el-select v-model="modelExceptionForm.exceptionType" style="width: 100%;">
+            <el-option label="口扫文件损坏" value="scan_file_corrupted" />
+            <el-option label="石膏模型破损" value="plaster_model_damaged" />
+            <el-option label="比色照片缺失" value="shade_photo_missing" />
+            <el-option label="其他" value="other" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="问题描述" required>
+          <el-input v-model="modelExceptionForm.description" type="textarea" :rows="3" placeholder="请详细描述异常情况..." />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="modelExceptionForm.remark" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="modelExceptionVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitModelException">提交</el-button>
       </template>
     </el-dialog>
 
@@ -391,6 +491,7 @@ import { createRepair } from '@/api/repair'
 import { createInspection } from '@/api/inspection'
 import { createLogistics } from '@/api/logistics'
 import { deleteFile } from '@/api/file'
+import { createModelException } from '@/api/model-exception'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -401,6 +502,8 @@ const toothFiles = ref([])
 
 const canUpdateStatus = computed(() => ['technician', 'inspector', 'doctor', 'receptionist', 'logistics'].includes(userStore.user?.role))
 const canCreateRepair = computed(() => ['doctor', 'inspector', 'technician', 'receptionist'].includes(userStore.user?.role))
+const canCreateTryRepair = computed(() => ['doctor'].includes(userStore.user?.role))
+const canReportModelException = computed(() => ['technician', 'inspector', 'doctor', 'receptionist'].includes(userStore.user?.role))
 const canInspect = computed(() => ['inspector', 'technician'].includes(userStore.user?.role))
 const canLogistics = computed(() => ['logistics', 'receptionist'].includes(userStore.user?.role))
 const canSubmitFeedback = computed(() => ['doctor'].includes(userStore.user?.role))
@@ -420,13 +523,41 @@ const statusMap = {
   shipped: '已发货', delivered: '已送达', completed: '已完成',
 }
 const repairStatusMap = {
-  pending: '待处理', processing: '处理中', completed: '已完成', returned: '已退回',
+  pending: '待处理', processing: '处理中', technician_completed: '技师完成',
+  inspecting: '质检中', completed: '已完成', returned: '已退回',
+}
+const exceptionStatusMap = {
+  reported: '已上报', notifying_patient: '通知患者中', doctor_confirming: '医生确认中',
+  recording_loss: '记录损耗中', rescheduling: '重新排期中', resolved: '已解决', closed: '已关闭',
+}
+const issueMap = {
+  margin_gap: '边缘不密合', color_gray: '颜色偏灰',
+  occlusion_high: '咬合过高', contact_tight: '邻接过紧', other: '其他',
+}
+const technicianActionMap = {
+  recolor: '改色', remake: '重做', fine_tune: '微调', reimpression: '重新取模',
+}
+const exceptionTypeMap = {
+  scan_file_corrupted: '口扫文件损坏', plaster_model_damaged: '石膏模型破损',
+  shade_photo_missing: '比色照片缺失', other: '其他',
+}
+const doctorDecisionMap = {
+  no_change: '维持原方案', adjust_plan: '调整方案', cancel_tooth: '取消该牙位',
 }
 const categoryMap = {
   color_photo: '比色照片', scan_file: '口扫文件', design_file: '设计文件', other: '其他',
 }
 function statusText(s) { return statusMap[s] || s }
 function repairStatusText(s) { return repairStatusMap[s] || s }
+function exceptionStatusText(s) { return exceptionStatusMap[s] || s }
+function issueText(i) { return issueMap[i] || '-' }
+function technicianActionText(a) { return technicianActionMap[a] || '-' }
+function exceptionTypeText(t) { return exceptionTypeMap[t] || t }
+function exceptionTypeTag(t) {
+  const m = { scan_file_corrupted: 'danger', plaster_model_damaged: 'warning', shade_photo_missing: 'info', other: '' }
+  return m[t] || ''
+}
+function doctorDecisionText(d) { return doctorDecisionMap[d] || '-' }
 function stageText(s) { return stages.find(t => t.key === s)?.label || s }
 function categoryText(c) { return categoryMap[c] || c || '其他' }
 function categoryTagType(c) {
@@ -490,11 +621,70 @@ async function submitRepair() {
   await createRepair({
     toothId: tooth.value.id,
     reporterId: userStore.user.id,
+    repairType: 'general',
     reason: repairForm.reason,
     remark: repairForm.remark,
   })
   ElMessage.success('返修申请已提交')
   repairVisible.value = false
+  loadData()
+}
+
+const tryRepairVisible = ref(false)
+const tryRepairForm = reactive({
+  issues: [], reason: '', affectsCharging: false, revisitDate: '', remark: '',
+})
+function openTryRepairDialog() {
+  tryRepairForm.issues = []
+  tryRepairForm.reason = ''
+  tryRepairForm.affectsCharging = false
+  tryRepairForm.revisitDate = ''
+  tryRepairForm.remark = ''
+  tryRepairVisible.value = true
+}
+async function submitTryRepair() {
+  if (!tryRepairForm.issues.length || !tryRepairForm.reason.trim()) {
+    ElMessage.warning('请选择问题类型并填写详细原因')
+    return
+  }
+  await createRepair({
+    toothId: tooth.value.id,
+    reporterId: userStore.user.id,
+    repairType: 'try_in',
+    issue: tryRepairForm.issues[0],
+    reason: tryRepairForm.reason,
+    affectsCharging: tryRepairForm.affectsCharging,
+    revisitDate: tryRepairForm.revisitDate || undefined,
+    remark: tryRepairForm.remark,
+  })
+  ElMessage.success('试戴返修申请已提交')
+  tryRepairVisible.value = false
+  loadData()
+}
+
+const modelExceptionVisible = ref(false)
+const modelExceptionForm = reactive({ exceptionType: '', description: '', remark: '' })
+function openModelExceptionDialog() {
+  modelExceptionForm.exceptionType = ''
+  modelExceptionForm.description = ''
+  modelExceptionForm.remark = ''
+  modelExceptionVisible.value = true
+}
+async function submitModelException() {
+  if (!modelExceptionForm.exceptionType || !modelExceptionForm.description.trim()) {
+    ElMessage.warning('请选择异常类型并填写问题描述')
+    return
+  }
+  await createModelException({
+    toothId: tooth.value.id,
+    orderId: tooth.value.orderId,
+    reporterId: userStore.user.id,
+    exceptionType: modelExceptionForm.exceptionType,
+    description: modelExceptionForm.description,
+    remark: modelExceptionForm.remark || undefined,
+  })
+  ElMessage.success('模型异常已上报')
+  modelExceptionVisible.value = false
   loadData()
 }
 

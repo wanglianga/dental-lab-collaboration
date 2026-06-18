@@ -5,6 +5,7 @@ import { Inspection } from '../../inspection/entities/inspection.entity';
 import { Repair } from '../../repair/entities/repair.entity';
 import { Logistics } from '../../logistics/entities/logistics.entity';
 import { FileRecord } from '../../file/entities/file.entity';
+import { ModelException } from '../../model-exception/entities/model-exception.entity';
 
 export type ToothStatus = 'pending' | 'processing' | 'inspection' | 'rework' | 'shipped' | 'delivered' | 'completed';
 export type ToothStage = 'model_design' | 'wax_pattern' | 'casting' | 'porcelain' | 'glazing' | 'color_adjustment' | 'quality_check' | 'completed';
@@ -60,6 +61,9 @@ export class Tooth {
   @Column({ type: 'text', nullable: true })
   tryFeedback: string;
 
+  @Column({ type: 'datetime', nullable: true })
+  expectedDeliveryDate: Date;
+
   @OneToMany(() => ProcessRecord, pr => pr.tooth)
   processRecords: ProcessRecord[];
 
@@ -74,6 +78,9 @@ export class Tooth {
 
   @OneToMany(() => FileRecord, f => f.tooth)
   files: FileRecord[];
+
+  @OneToMany(() => ModelException, me => me.tooth)
+  modelExceptions: ModelException[];
 
   @CreateDateColumn()
   createdAt: Date;

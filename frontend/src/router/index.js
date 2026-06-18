@@ -74,6 +74,12 @@ const routes = [
         component: () => import('@/views/Repairs.vue'),
         meta: { title: '返修管理' },
       },
+      {
+        path: 'model-exceptions',
+        name: 'ModelExceptions',
+        component: () => import('@/views/ModelExceptions.vue'),
+        meta: { title: '模型异常管理' },
+      },
     ],
   },
 ]
